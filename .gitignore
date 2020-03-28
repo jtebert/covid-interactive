@@ -1,4 +1,7 @@
 venv/
 .vscode/
 covid-19-data/
-**/*.pyc
+*.pyc
+.DS_Store
+.env
+.ipynb_checkpoints/
