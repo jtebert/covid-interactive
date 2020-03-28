@@ -13,6 +13,8 @@ from dash.dependencies import Input, Output
 import pandas as pd
 import numpy as np
 
+import dash_bootstrap_components as dbc
+
 import data_process as dp
 
 
@@ -59,56 +61,111 @@ y_data_options = {
 # ------------------------------------------------------------------------------
 
 
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+# external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+external_stylesheets = [dbc.themes.LITERA, 'style.css']
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
-app.layout = html.Div(children=[
-    html.H1(children='US COVID-19 Data'),
+info_text = dcc.Markdown('''
+    This is a set of interactive plots for the COVID-19 data from The New York Times, based on reports from state and local health agencies.
 
-    html.Div(children='''
-        Dash: A web application framework for Python.
-    '''),
-    html.Label('Y-axis Display'),
-    dcc.RadioItems(
-        id='yaxis-type',
-        options=dict_to_options(yaxis_type_options),
-        value='log'
-    ),
-    html.Label('Show number of...'),
-    dcc.RadioItems(
-        id='cases-or-deaths',
-        options=dict_to_options(cases_or_deaths_options),
-        value='cases'
-    ),
-    html.Label('Show..'),
-    dcc.RadioItems(
-        id='y-data',
-        options=dict_to_options(y_data_options),
-        value=''
-    ),
+    Source data: [github/nytimes](https://github.com/nytimes/covid-19-data).
 
-    html.Label('Map date:'),
-    dcc.DatePickerSingle(
-        id='date-picker',
-        min_date_allowed=state_df['date'].min(),
-        max_date_allowed=state_df['date'].max(),
-        # initial_visible_month=dt(2017, 8, 5),
-        date=str(state_df['date'].max()),
-        display_format='MMM D YYYY'
-    ),
+    Source code: [github/jtebert](https://github.com/jtebert/covid-interactive)
+    ''')
 
-    dcc.Graph(
-        id='case-map',
-        style={'height': 900}
-    ),
+header_content = html.H1('US COVID-19 Data', className="page-title")
 
-    dcc.Graph(
-        id='case-count',
-        style={'height': 900}
-    ),
+layout_buttons = [
 
-])
+    dbc.Alert([
+        html.H4("Total Cases"),
+        html.H2(id="cases-total")
+    ], color="warning"),
+    dbc.Alert([
+        html.H4("Total Deaths"),
+        html.H2(id="deaths-total")
+    ], color="danger"),
+
+    dbc.FormGroup([
+        dbc.Label('Date:'),
+        html.Br(),
+        dcc.DatePickerSingle(
+            id='date-picker',
+            min_date_allowed=state_df['date'].min(),
+            max_date_allowed=state_df['date'].max(),
+            # initial_visible_month=dt(2017, 8, 5),
+            date=str(state_df['date'].max()),
+            display_format='MMM D YYYY'
+        ),
+    ]),
+
+    dbc.FormGroup([
+        dbc.Label('Data Scaling:'),
+        dbc.RadioItems(
+            id='yaxis-type',
+            options=dict_to_options(yaxis_type_options),
+            value='log'
+        )
+    ]),
+
+    dbc.FormGroup([
+        dbc.Label('Show number of...'),
+        dbc.RadioItems(
+            id='cases-or-deaths',
+            options=dict_to_options(cases_or_deaths_options),
+            value='cases'
+        ),
+    ]),
+
+    dbc.FormGroup([
+        dbc.Label('Show..'),
+        dbc.RadioItems(
+            id='y-data',
+            options=dict_to_options(y_data_options),
+            value=''
+        ),
+    ]),
+
+    html.Br(),
+    info_text
+]
+
+
+map_graph = dcc.Graph(
+    id='case-map',
+    style={
+        'height': '85vh',
+        'width': '100%',
+    }
+)
+
+time_graph = dcc.Graph(
+    id='case-count',
+    style={
+        'height': '85vh',
+        'width': '100%'
+    }
+)
+
+app.layout = html.Div([
+    html.Div([
+        # html.Div(["Hello"], className="top-left"),
+        html.Div(dbc.Container(layout_buttons, fluid=True), className="bottom")
+    ], className="column bg-light", id="left"),
+    html.Div(
+        [
+            # html.Div(header_content, className="top-right"),
+            html.Div(
+                dbc.Container(
+                    [header_content,
+                     dbc.Tabs([dbc.Tab(map_graph, label="Map"),
+                               dbc.Tab(time_graph, label="Time Series")])],
+                    fluid=True), className="bottom")
+        ],
+        className="column", id="right"),
+
+], className='flex-container')
 
 
 def get_column_name(cases_or_deaths, y_data):
@@ -133,37 +190,48 @@ def update_case_map(yaxis_type, cases_or_deaths, y_data, use_date):
     title_str = '{} of {}'.format(
         y_data_options[y_data], cases_or_deaths_options[cases_or_deaths])
 
+    if yaxis_type == 'log':
+        z_data = np.log10(dp.col_filter(county_df_nanless, date=use_date)[cases_or_deaths])
+    else:
+        z_data = dp.col_filter(county_df_nanless, date=use_date)[cases_or_deaths]
+
     fig = px.choropleth(
         dp.col_filter(county_df_nanless, date=use_date),
         locations='fips',
         color=y_key,
         geojson=counties,
-        color_continuous_scale="Viridis",
+        color_continuous_scale="RdYlGn_r",
         # range_color=(0, 100),
         scope="usa",
         hover_name='title',
-        # locationmode='USA-states',
-        # text=county_df_nanless['cases'],
-        labels={cases_or_deaths_options[cases_or_deaths]: cases_or_deaths},
-        # county_outline={'color': 'rgb(255,255,255)', 'width': 0.5}
+        # labels=county_df_nanless['title'],
+        # labels={cases_or_deaths_options[cases_or_deaths]: cases_or_deaths},
     )
 
+    date = datetime.datetime.strptime(use_date.split(' ')[0], '%Y-%m-%d')
+    date_string = date.strftime('%b %d, %Y')
+
     fig.update_layout(
-        title=title_str + ' by County on ' + str(use_date).split(' ')[0],
+        # title=title_str + ' by County on ' + date_string,
         coloraxis_colorbar=dict(
             title=title_str,
         ),
-        # county_df_nanless['cases']
     )
     # fig.update_traces(marker=dict(line=dict(color="green")))
     # fig.update_traces(marker_line_color='black')
     line_color = 'white'
+    fig.update_traces(z=z_data)
     fig.update_traces(
         marker_line={'color': line_color, 'width': 0.5},
-        text='cases',
-        # colorbar_title_text="This is a test"
+        # hoverinfo='text',
+        hoverinfo="location+z+text",
+        # hovertext=county_df_nanless['title'],
+        # hovertext='title',
+        text=county_df_nanless['title'],
+        # z=z_data,
     )
     fig.update_geos(showsubunits=True, subunitcolor=line_color, subunitwidth=1.5)
+
     return fig
 
 
@@ -208,7 +276,7 @@ def update_case_count(yaxis_type, cases_or_deaths, y_data):
             ) for s in states
         ],
         'layout': {
-            'title': title_str,
+            # 'title': title_str,
             'yaxis': {
                 'type': yaxis_type,
                 'title': title_str,
@@ -220,6 +288,31 @@ def update_case_count(yaxis_type, cases_or_deaths, y_data):
             'hovermode': 'closest',
         }
     }
+
+
+def counter_str(date, key):
+    if date is not None:
+        date = datetime.datetime.strptime(date.split(' ')[0], '%Y-%m-%d')
+        date_string = date.strftime('%b %d, %Y')
+
+        death_count = dp.col_filter(state_df, date=date)[key].sum()
+
+        return '{:,}'.format(death_count)
+        # return 'Total {} by {}: {:,}'.format(key, date_string, death_count)
+
+
+@app.callback(
+    Output('deaths-total', 'children'),
+    [Input('date-picker', 'date')])
+def update_output(date):
+    return counter_str(date, 'deaths')
+
+
+@app.callback(
+    Output('cases-total', 'children'),
+    [Input('date-picker', 'date')])
+def update_output(date):
+    return counter_str(date, 'cases')
 
 
 if __name__ == '__main__':

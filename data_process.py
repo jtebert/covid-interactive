@@ -30,7 +30,7 @@ def get_states(df):
 
 
 def process_data(df):
-    df = get_doubling_rate(df)
+    df = get_doubling_rate(df, 'cases', 'deaths')
     # Add text shortname
     if 'county' in df.columns:
         df['title'] = df['county'] + ' County, ' + df['state']
