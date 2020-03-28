@@ -65,6 +65,7 @@ y_data_options = {
 external_stylesheets = [dbc.themes.LITERA, 'style.css']
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+server = app.server
 
 info_text = dcc.Markdown('''
     This is a set of interactive plots for the COVID-19 data from The New York Times, based on reports from state and local health agencies.
