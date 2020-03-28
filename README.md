@@ -26,6 +26,8 @@ python app.py
 
 Open the interactive graph in the browser, probably at [localhost:8050](http://127.0.0.1:8050/)
 
+I used [these instructions](https://dash.plotly.com/deployment) to deploy to Heroku.
+
 ## License
 
 This project is available under the [MIT license](LICENSE.md).
