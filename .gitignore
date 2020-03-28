@@ -1,6 +1,6 @@
 venv/
 .vscode/
-covid-19-data/
+# covid-19-data/
 *.pyc
 .DS_Store
 .env
