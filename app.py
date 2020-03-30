@@ -66,6 +66,7 @@ external_stylesheets = [dbc.themes.LITERA, 'style.css']
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 server = app.server
+app.title = 'US COVID-19 Data'
 
 info_text = dcc.Markdown('''
     This is a set of interactive plots for the COVID-19 data from The New York Times, based on reports from state and local health agencies.
@@ -188,20 +189,28 @@ def get_column_name(cases_or_deaths, y_data):
 def update_case_map(yaxis_type, cases_or_deaths, y_data, use_date):
     y_key = get_column_name(cases_or_deaths, y_data)
 
-    title_str = '{} of {}'.format(
+    title_str = '{}<br>of {}'.format(
         y_data_options[y_data], cases_or_deaths_options[cases_or_deaths])
 
+    tmp_df = county_df_nanless[county_df_nanless['cases_doubling_rate'].notnull()]
+    use_df = dp.col_filter(tmp_df[tmp_df['cases_doubling_rate'] >= 0], date=use_date)
+
     if yaxis_type == 'log':
-        z_data = np.log10(dp.col_filter(county_df_nanless, date=use_date)[cases_or_deaths])
+        z_data = np.log10(use_df[y_key])
     else:
-        z_data = dp.col_filter(county_df_nanless, date=use_date)[cases_or_deaths]
+        z_data = use_df[y_key]
+
+    if y_data == 'doubling_rate':
+        colorscale = 'RdYlGn'
+    else:
+        colorscale = 'RdYlGn_r'
 
     fig = px.choropleth(
-        dp.col_filter(county_df_nanless, date=use_date),
+        use_df,
         locations='fips',
         color=y_key,
         geojson=counties,
-        color_continuous_scale="RdYlGn_r",
+        color_continuous_scale=colorscale,
         # range_color=(0, 100),
         scope="usa",
         hover_name='title',
@@ -209,13 +218,29 @@ def update_case_map(yaxis_type, cases_or_deaths, y_data, use_date):
         # labels={cases_or_deaths_options[cases_or_deaths]: cases_or_deaths},
     )
 
+    # Fix failed doubling mistake
+
     date = datetime.datetime.strptime(use_date.split(' ')[0], '%Y-%m-%d')
     date_string = date.strftime('%b %d, %Y')
+
+    # Make logarithmic scale labels
+    if yaxis_type == 'log':
+        tickmax = np.round(z_data[z_data != np.inf].max())
+        tickrange = list(range(int(tickmax)))
+        ticklabels = [10**t for t in tickrange]
+        fig.update_layout(
+            coloraxis_colorbar=dict(
+                tickvals=tickrange,
+                ticktext=ticklabels
+            )
+        )
 
     fig.update_layout(
         # title=title_str + ' by County on ' + date_string,
         coloraxis_colorbar=dict(
             title=title_str,
+            # tickvals=[0, 1, 2, 3],
+            # ticktext=['a', 'b', 'c']
         ),
     )
     # fig.update_traces(marker=dict(line=dict(color="green")))
@@ -228,7 +253,7 @@ def update_case_map(yaxis_type, cases_or_deaths, y_data, use_date):
         hoverinfo="location+z+text",
         # hovertext=county_df_nanless['title'],
         # hovertext='title',
-        text=county_df_nanless['title'],
+        text=use_df['title'],
         # z=z_data,
     )
     fig.update_geos(showsubunits=True, subunitcolor=line_color, subunitwidth=1.5)
@@ -259,8 +284,8 @@ def update_case_count(yaxis_type, cases_or_deaths, y_data):
         lower_bound = 0
 
     date_range = [
-        np.min(state_df['date']),
-        np.max(state_df['date']) + datetime.timedelta(days=1),
+        state_df['date'].min(),
+        state_df['date'].max() + datetime.timedelta(days=1),
     ]
 
     return {
@@ -317,4 +342,4 @@ def update_output(date):
 
 
 if __name__ == '__main__':
-    app.run_server(debug=False)
+    app.run_server(debug=True)
