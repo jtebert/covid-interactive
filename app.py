@@ -56,7 +56,7 @@ cases_or_deaths_options = {
 
 y_data_options = {
     '': 'Total Count',
-    'change': 'Daily Change (ratio)',
+    'change': 'Daily Change (%)',
     'doubling_rate': 'Doubling Rate (days)'
 }
 
@@ -220,7 +220,7 @@ def update_case_map(yaxis_type, cases_or_deaths, y_data, use_date, display_switc
 
     # Remove edge cases where number of cases/deaths decreased
     # df[(df['col1'] >= 1) & (df['col1'] <= 1)]
-    if y_data in ['doubling_rate', 'change']:
+    if y_data in ['doubling_rate']:
         key = cases_or_deaths+'_doubling_rate'
         use_df = county_df_nanless[
             (county_df_nanless['date'] == use_date) &
@@ -403,7 +403,6 @@ def get_graph_descriptor(yaxis_type, cases_or_deaths, y_data, use_date, display_
     # Summary string based on all the options selected
     date = datetime.datetime.strptime(use_date.split(' ')[0], '%Y-%m-%d')
     date_string = date.strftime('%B %d, %Y')
-    print(date_string)
     if yaxis_type == 'log':
         log_txt = ', on a logarithmic scale'
     else:

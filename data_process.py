@@ -52,8 +52,8 @@ def get_doubling_rate(df, *keys):
             changes.append(col_filter(df, fips=fips)[key].pct_change())
         change_series = pd.concat(changes)
         # Add the change/doubling columns to the existing dataframe
-        df[key+'_change'] = change_series
-        df[key+'_doubling_rate'] = 1 / np.log2(1+df[key+'_change'])
+        df[key+'_change'] = change_series * 100
+        df[key+'_doubling_rate'] = 1 / np.log2(1+df[key+'_change']/100)
     return df
 
 

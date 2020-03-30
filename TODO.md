@@ -8,6 +8,7 @@
 - Some way to make the data auto-refresh?
 - Add a smoothing option (average change/doubling rate over multiple days)
 - Add link to readme explaining options
+- Add daily change in absolute number of cases (instead of percentage)
 
 ## Fix
 
