@@ -2,7 +2,7 @@
 
 This is an interactive interface for the New York Times COVID-19 data, which is [available here](https://github.com/nytimes/covid-19-data).
 
-### [VIEW HERE](http://covid-interactive.herokuapp.com)
+### [VIEW HERE](http://covid-19.juliaebert.com)
 
 ## Install
 
@@ -18,6 +18,12 @@ Within the cloned directory, set up the Python environment:
 python3 -m venv venv  # Create a virtual environment for the dependencies
 source venv/bin/activate  # Activate the virtual environment
 pip install -r requirements.txt  # Install the dependencies for the project
+```
+
+To update the data from the submodule, run:
+
+```shell
+git submodule update --remote
 ```
 
 ## Run
