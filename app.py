@@ -56,7 +56,7 @@ cases_or_deaths_options = {
 
 y_data_options = {
     '': 'Total Count',
-    'change': 'Daily Change (%)',
+    'change': 'Daily Change (count)',
     'doubling_rate': 'Doubling Rate (days)'
 }
 
@@ -78,11 +78,13 @@ app.title = 'US COVID-19 Data'
 info_text = dcc.Markdown('''
     This is a set of interactive plots for the COVID-19 data from The New York Times, based on reports from state and local health agencies.
 
-    This is a work in progress and has many bugs. Bear with me.
+    [Read here](https://github.com/jtebert/covid-interactive#graph-options) for more information about graph options.
 
-    Source data: [github/nytimes](https://github.com/nytimes/covid-19-data)
+    Source data: [Github/nytimes](https://github.com/nytimes/covid-19-data)
 
-    Source code: [github/jtebert](https://github.com/jtebert/covid-interactive)
+    Source code: [Github/jtebert](https://github.com/jtebert/covid-interactive)
+
+    Questions or comments: [Email me](mailto:julia@juliaebert.com)
     ''')
 
 header_content = html.H1('US COVID-19 Data', className="page-title")
@@ -186,8 +188,8 @@ app.layout = html.Div([
                 dbc.Container(
                     [header_content,
                      graph_descriptor,
-                     dbc.Tabs([dbc.Tab(map_graph, label="Map"),
-                               dbc.Tab(time_graph, label="Time Series")])],
+                     dbc.Tabs([dbc.Tab(map_graph, label="Map", tab_id='tab-map'),
+                               dbc.Tab(time_graph, label="Time Series", tab_id='tab-graph')])],
                     fluid=True), className="bottom")
         ],
         className="column", id="right"),
@@ -281,6 +283,15 @@ def update_case_map(yaxis_type, cases_or_deaths, y_data, use_date, display_switc
             )
         )
 
+    # Create hover label based on data to be displayed
+    hover_template = "<b>%{customdata[0]}</b><br>" +\
+        "Cases: %{customdata[1]:,} (+%{customdata[3]:,})<br>" +\
+        "Deaths: %{customdata[2]:,} (+%{customdata[4]:,})<br>"
+    if y_data == 'doubling_rate':
+        y_key_str = cases_or_deaths_options[cases_or_deaths] + ' doubling rate'
+        # hover_template = hover_template + y_key_str + "%{customdata[5]:,}"
+        hover_template = hover_template + y_key_str + ": %{customdata[5]:.2f} days"
+
     fig.update_layout(
         coloraxis_colorbar=dict(
             title=title_str,
@@ -292,10 +303,12 @@ def update_case_map(yaxis_type, cases_or_deaths, y_data, use_date, display_switc
     fig.update_traces(
         marker_line={'color': line_color, 'width': 0.5},
         hoverinfo="location+z+text",
-        customdata=np.stack((use_df['title'], use_df['cases'], use_df['deaths']), axis=-1),
-        hovertemplate="<b>%{customdata[0]}</b><br>" +
-                      "Cases: %{customdata[1]:,}<br>" +
-                      "Deaths: %{customdata[2]:,}"
+        customdata=np.stack(
+            (use_df['title'], use_df['cases'], use_df['deaths'],
+             use_df['cases_change'], use_df['deaths_change'],
+             use_df[y_key]),
+            axis=-1),
+        hovertemplate=hover_template,
     )
     fig.update_geos(showsubunits=True, subunitcolor=line_color, subunitwidth=1.5)
 

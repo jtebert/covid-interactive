@@ -48,12 +48,17 @@ def get_doubling_rate(df, *keys):
     """
     for key in keys:
         changes = []
+        changes_count = []
         for fips in df.fips.unique():
-            changes.append(col_filter(df, fips=fips)[key].pct_change())
+            filtered = col_filter(df, fips=fips)[key]
+            changes.append(filtered.pct_change())
+            changes_count.append(filtered.diff())
         change_series = pd.concat(changes)
+        change_count_series = pd.concat(changes_count)
         # Add the change/doubling columns to the existing dataframe
-        df[key+'_change'] = change_series * 100
-        df[key+'_doubling_rate'] = 1 / np.log2(1+df[key+'_change']/100)
+        df[key+'_change'] = change_count_series
+        doubling_rate_series = 1 / np.log2(1+change_series)
+        df[key+'_doubling_rate'] = doubling_rate_series
     return df
 
 

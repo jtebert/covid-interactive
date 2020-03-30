@@ -9,7 +9,9 @@
 - Add a data smoothing option (average change/doubling rate over multiple days)
 - Add link to readme explaining options
 - Add daily change in absolute number of cases (instead of percentage)
+- Put on custom subdomain
 
 ## Fix
 
 - Make the map have a default state, instead of the empty graph look (might be fixed by adding loading overlay)
+- Make it responsive/mobile-friendly
