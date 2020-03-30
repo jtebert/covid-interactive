@@ -49,7 +49,7 @@ This is an explanation of the options for displaying data in the map and time se
 **Show...** Choose how to process and display the death/case data.
 - **Total Count:** Show the raw count of confirmed cases/deaths.
 - **Daily Change (count):** Show the change in number of cases/deaths from the preceding day.
-- **Doubling rate (days):** Show how many days it currently takes for the number of cases/deaths to double. This is computed as
+- **Doubling rate (days):** Show how many days it currently takes for the number of cases/deaths to double. This is computed as $1/\log_2(\frac{\text{today}}{\text{yesterday}})$
 
 **Display Options:**
 - **Show background map:** Turn on/off a detailed map underneath the county data
