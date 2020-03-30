@@ -229,14 +229,14 @@ def update_case_map(yaxis_type, cases_or_deaths, y_data, use_date, display_switc
         ]
     else:
         use_df = use_df = county_df_nanless[county_df_nanless['date'] == use_date]
-    # tmp_df = county_df_nanless[county_df_nanless['cases_doubling_rate'].notnull()]
-    # use_df = dp.col_filter(tmp_df[tmp_df['cases_doubling_rate'] >= 0], date=use_date)
 
     if yaxis_type == 'log':
         z_data = np.log10(use_df[y_key])
     else:
         z_data = use_df[y_key]
 
+    # Higher is better (green) for all cases except doubling rate, so reverse
+    # the colorscale for that one
     if y_data == 'doubling_rate':
         colorscale = 'RdYlGn'
     else:
@@ -247,8 +247,6 @@ def update_case_map(yaxis_type, cases_or_deaths, y_data, use_date, display_switc
         color=y_key,
         geojson=counties,
         color_continuous_scale=colorscale,
-        hover_name='title',
-        # scope="usa",
     )
 
     # Use background map or not
@@ -284,26 +282,20 @@ def update_case_map(yaxis_type, cases_or_deaths, y_data, use_date, display_switc
         )
 
     fig.update_layout(
-        # title=title_str + ' by County on ' + date_string,
         coloraxis_colorbar=dict(
             title=title_str,
-            # tickvals=[0, 1, 2, 3],
-            # ticktext=['a', 'b', 'c']
         ),
         margin={"r": 0, "t": 0, "l": 0, "b": 0}
     )
-    # fig.update_traces(marker=dict(line=dict(color="green")))
-    # fig.update_traces(marker_line_color='black')
     line_color = 'white'
     fig.update_traces(z=z_data)
     fig.update_traces(
         marker_line={'color': line_color, 'width': 0.5},
-        # hoverinfo='text',
         hoverinfo="location+z+text",
-        # hovertext=county_df_nanless['title'],
-        # hovertext='title',
-        text=use_df['title'],
-        # z=z_data,
+        customdata=np.stack((use_df['title'], use_df['cases'], use_df['deaths']), axis=-1),
+        hovertemplate="<b>%{customdata[0]}</b><br>" +
+                      "Cases: %{customdata[1]:,}<br>" +
+                      "Deaths: %{customdata[2]:,}"
     )
     fig.update_geos(showsubunits=True, subunitcolor=line_color, subunitwidth=1.5)
 
@@ -361,19 +353,18 @@ def update_case_count(yaxis_type, cases_or_deaths, y_data):
                 'range': date_range,
             },
             'hovermode': 'closest',
+            'margin_t': {"r": 0, "t": 0, "l": 0, "b": 0}
+
         }
     }
 
 
 def counter_str(date, key):
+    # Get and format the total number of deaths or cases for this date
     if date is not None:
-        date = datetime.datetime.strptime(date.split(' ')[0], '%Y-%m-%d')
-        date_string = date.strftime('%b %d, %Y')
+        counter = dp.col_filter(state_df, date=date)[key].sum()
 
-        death_count = dp.col_filter(state_df, date=date)[key].sum()
-
-        return '{:,}'.format(death_count)
-        # return 'Total {} by {}: {:,}'.format(key, date_string, death_count)
+        return '{:,}'.format(counter)
 
 
 @app.callback(
