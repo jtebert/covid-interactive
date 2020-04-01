@@ -10,7 +10,6 @@ def import_data(filename):
     df = pd.read_csv(filename,
                      parse_dates=['date'], date_parser=dateparser,
                      dtype={"fips": str})
-    # df = pd.read_csv(filename, index_col='date', parse_dates=True)
     return df
 
 
@@ -56,6 +55,7 @@ def get_doubling_rate(df, *keys):
         # Add the change/doubling columns to the existing dataframe
         df[key+'_change'] = pd.concat(changes_count)
         df[key+'_doubling_rate'] = 1 / np.log2(1+pd.concat(changes))
+        df[key+'_change'].fillna(df[key], inplace=True)
     return df
 
 

@@ -35,7 +35,7 @@ states.sort()
 
 last_date = county_df_nanless['date'].max()
 
-
+# Get the listing of counties for placing data on the map
 with urlopen('https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json') as response:
     counties = json.load(response)
 
