@@ -58,6 +58,9 @@ This is an explanation of the options for displaying data in the map and time se
 - **Doubling rate (days):** Show how many days it currently takes for the number of cases/deaths to double. This is computed as:
   <img src="https://render.githubusercontent.com/render/math?math=1/\log_2(\frac{\text{today}}{\text{yesterday}})">
 
+**Average data over days:** This generates a moving average of the data over the current and preceding days. By default, it is set to 1 day, which means that there is no averaging.
+
 **Display Options:**
+- **Use fixed color scale:** Uses a colorscale for the map based on the maximum value on the most recent day. This allows you to compare maps across days on the same scale. If unchecked, the colors are scaled based on the data for the current day
 - **Show background map:** Turn on/off a detailed map underneath the county data
 - *More coming soon*

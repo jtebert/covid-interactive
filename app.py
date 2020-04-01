@@ -33,6 +33,9 @@ county_df_nanless = county_df[county_df['fips'].notnull()]
 states = state_df.state.unique()
 states.sort()
 
+last_date = county_df_nanless['date'].max()
+
+
 with urlopen('https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json') as response:
     counties = json.load(response)
 
@@ -61,7 +64,7 @@ y_data_options = {
 }
 
 display_options = {
-    # 'colors': 'Use fixed color scale',
+    'colors': 'Use fixed color scale',
     'map': 'Show background map'
 }
 
@@ -134,11 +137,25 @@ layout_buttons = [
     ]),
 
     dbc.FormGroup([
-        dbc.Label('Show..'),
+        dbc.Label('Show...'),
         dbc.RadioItems(
             id='y-data',
             options=dict_to_options(y_data_options),
             value=''
+        ),
+    ]),
+
+    dbc.FormGroup([
+        dbc.Label('Average data over days:'),
+        dbc.Input(
+            id='days-to-average',
+            type='number',
+            min=1,
+            debounce=True,
+            value=1
+        ),
+        dbc.FormText(
+            "Click outside the box to activate the change", color="secondary"
         ),
     ]),
 
@@ -211,26 +228,34 @@ def get_column_name(cases_or_deaths, y_data):
      Input(component_id='cases-or-deaths', component_property='value'),
      Input(component_id='y-data', component_property='value'),
      Input(component_id='date-picker', component_property='date'),
+     Input(component_id='days-to-average', component_property='value'),
      Input(component_id='display-switches', component_property='value'),
      ]
 )
-def update_case_map(yaxis_type, cases_or_deaths, y_data, use_date, display_switches):
+def update_case_map(yaxis_type, cases_or_deaths, y_data, use_date, days_to_average, display_switches):
     y_key = get_column_name(cases_or_deaths, y_data)
 
     title_str = '{}<br>of {}'.format(
         y_data_options[y_data], cases_or_deaths_options[cases_or_deaths])
 
+    # Generate moving average data
+    # TODO: Pre-compute for some range of days?
+    if days_to_average > 1:
+        use_df = dp.get_moving_average(county_df_nanless, y_key, days_to_average)
+        y_key = y_key+'_avg'
+    else:
+        use_df = county_df_nanless
+
     # Remove edge cases where number of cases/deaths decreased
-    # df[(df['col1'] >= 1) & (df['col1'] <= 1)]
     if y_data in ['doubling_rate']:
         key = cases_or_deaths+'_doubling_rate'
-        use_df = county_df_nanless[
-            (county_df_nanless['date'] == use_date) &
-            (county_df_nanless[key].notnull()) &
-            (county_df_nanless[key] >= 0)
+        use_df = use_df[
+            (use_df['date'] == use_date) &
+            (use_df[key].notnull()) &
+            (use_df[key] >= 0)
         ]
     else:
-        use_df = use_df = county_df_nanless[county_df_nanless['date'] == use_date]
+        use_df = use_df[use_df['date'] == use_date]
 
     if yaxis_type == 'log':
         z_data = np.log10(use_df[y_key])
@@ -250,6 +275,12 @@ def update_case_map(yaxis_type, cases_or_deaths, y_data, use_date, display_switc
         geojson=counties,
         color_continuous_scale=colorscale,
     )
+    if 'colors' in display_switches:
+        # Set the color range based on the highest value on the last day
+        color_max = county_df_nanless[county_df_nanless['date'] == last_date][y_key].max()
+        if yaxis_type == 'log':
+            color_max = np.log10(color_max)
+        choropleth_vals['range_color'] = (0, color_max)
 
     # Use background map or not
     if 'map' in display_switches:
@@ -287,10 +318,16 @@ def update_case_map(yaxis_type, cases_or_deaths, y_data, use_date, display_switc
     hover_template = "<b>%{customdata[0]}</b><br>" +\
         "Cases: %{customdata[1]:,} (+%{customdata[3]:,})<br>" +\
         "Deaths: %{customdata[2]:,} (+%{customdata[4]:,})<br>"
-    if y_data == 'doubling_rate':
-        y_key_str = cases_or_deaths_options[cases_or_deaths] + ' doubling rate'
-        # hover_template = hover_template + y_key_str + "%{customdata[5]:,}"
-        hover_template = hover_template + y_key_str + ": %{customdata[5]:.2f} days"
+    # if y_data == 'doubling_rate':
+    #     y_key_str = cases_or_deaths_options[cases_or_deaths] + ' doubling rate'
+    #     hover_template = hover_template + y_key_str + ": %{customdata[5]:.2f} days"
+    # if days_to_average > 1:
+    y_key_str = '<br>{} day average<br>{} {}'.format(
+        days_to_average,
+        cases_or_deaths_options[cases_or_deaths],
+        y_data_options[y_data],
+    ) + ': %{customdata[5]}'
+    hover_template = hover_template + y_key_str
 
     fig.update_layout(
         coloraxis_colorbar=dict(
@@ -319,9 +356,11 @@ def update_case_map(yaxis_type, cases_or_deaths, y_data, use_date, display_switc
     Output(component_id='case-count', component_property='figure'),
     [Input(component_id='yaxis-type', component_property='value'),
      Input(component_id='cases-or-deaths', component_property='value'),
-     Input(component_id='y-data', component_property='value')]
+     Input(component_id='y-data', component_property='value'),
+     Input(component_id='days-to-average', component_property='value'),
+     ]
 )
-def update_case_count(yaxis_type, cases_or_deaths, y_data):
+def update_case_count(yaxis_type, cases_or_deaths, y_data, days_to_average):
     title_str = '{} of {}'.format(
         y_data_options[y_data], cases_or_deaths_options[cases_or_deaths])
 
@@ -342,11 +381,18 @@ def update_case_count(yaxis_type, cases_or_deaths, y_data):
         state_df['date'].max() + datetime.timedelta(days=1),
     ]
 
+    # Generate moving average
+    if days_to_average > 1:
+        use_df = dp.get_moving_average(state_df, y_key, days_to_average)
+        y_key = y_key + '_avg'
+    else:
+        use_df = state_df
+
     return {
         'data': [
             dict(
-                x=state_df[state_df['state'] == s]['date'],
-                y=state_df[state_df['state'] == s][y_key],
+                x=use_df[use_df['state'] == s]['date'],
+                y=use_df[use_df['state'] == s][y_key],
                 # text=s,
                 mode='line',
                 marker={
@@ -400,10 +446,11 @@ def update_output(date):
      Input(component_id='cases-or-deaths', component_property='value'),
      Input(component_id='y-data', component_property='value'),
      Input(component_id='date-picker', component_property='date'),
+     Input(component_id='days-to-average', component_property='value'),
      Input(component_id='display-switches', component_property='value'),
      ]
 )
-def get_graph_descriptor(yaxis_type, cases_or_deaths, y_data, use_date, display_switches):
+def get_graph_descriptor(yaxis_type, cases_or_deaths, y_data, use_date, days_to_average, display_switches):
     # Summary string based on all the options selected
     date = datetime.datetime.strptime(use_date.split(' ')[0], '%Y-%m-%d')
     date_string = date.strftime('%B %d, %Y')
@@ -411,12 +458,17 @@ def get_graph_descriptor(yaxis_type, cases_or_deaths, y_data, use_date, display_
         log_txt = ', on a logarithmic scale'
     else:
         log_txt = ''
+    if days_to_average > 1:
+        days_txt = ' ({} day moving average)'.format(days_to_average)
+    else:
+        days_txt = ''
 
-    title_str = '{type} of {data} on {date}{log}.'.format(
+    title_str = '{type} of {data} on {date}{log}{days}.'.format(
         type=y_data_options[y_data].lower().capitalize(),
         data=cases_or_deaths_options[cases_or_deaths].lower(),
         date=date_string.capitalize(),
-        log=log_txt)
+        log=log_txt,
+        days=days_txt)
     return title_str
 
 

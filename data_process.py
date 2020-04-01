@@ -53,12 +53,22 @@ def get_doubling_rate(df, *keys):
             filtered = col_filter(df, fips=fips)[key]
             changes.append(filtered.pct_change())
             changes_count.append(filtered.diff())
-        change_series = pd.concat(changes)
-        change_count_series = pd.concat(changes_count)
         # Add the change/doubling columns to the existing dataframe
-        df[key+'_change'] = change_count_series
-        doubling_rate_series = 1 / np.log2(1+change_series)
-        df[key+'_doubling_rate'] = doubling_rate_series
+        df[key+'_change'] = pd.concat(changes_count)
+        df[key+'_doubling_rate'] = 1 / np.log2(1+pd.concat(changes))
+    return df
+
+
+def get_moving_average(df, y_key, num_days):
+    """
+    Compute a moving average of the data in the `y_key` column of the dataframe
+    over `num_days` days.
+    """
+    avgs = []
+    for fips in df.fips.unique():
+        filtered = col_filter(df, fips=fips)[y_key]
+        avgs.append(filtered.rolling(window=num_days).mean())
+    df[y_key+'_avg'] = pd.concat(avgs)
     return df
 
 
