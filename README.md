@@ -40,7 +40,9 @@ I used [these instructions](https://dash.plotly.com/deployment) to deploy to Her
 
 This project is available under the [MIT license](LICENSE.md).
 
-[Data is from The New York Times, based on reports from state and local health agencies](https://github.com/nytimes/covid-19-data).
+[COVID-19 data is from The New York Times, based on reports from state and local health agencies](https://github.com/nytimes/covid-19-data).
+
+County population data is from the Department of Agriculture (2018) and state population data is from the US Census (2019).
 
 ## Graph Options
 
@@ -54,6 +56,7 @@ This is an explanation of the options for displaying data in the map and time se
 
 **Show...** Choose how to process and display the death/case data.
 - **Total Count:** Show the raw count of confirmed cases/deaths.
+- **Count per 100,000 People:** Show the number of cases/deaths per 100,000 in each county or state. (See above for population data sources.)
 - **Daily Change (count):** Show the change in number of cases/deaths from the preceding day.
 - **Doubling rate (days):** Show how many days it currently takes for the number of cases/deaths to double. This is computed as:
   <img src="https://render.githubusercontent.com/render/math?math=1/\log_2(\frac{\text{today}}{\text{yesterday}})">

@@ -9,7 +9,16 @@ def import_data(filename):
     def dateparser(x): return datetime.datetime.strptime(x, "%Y-%m-%d")
     df = pd.read_csv(filename,
                      parse_dates=['date'], date_parser=dateparser,
-                     dtype={"fips": str})
+                     dtype={"fips": str}
+                     )
+    # df['fips'] = df['fips'].map(lambda s: str(s).lstrip('0'))
+    return df
+
+
+def import_pop_data(filename):
+    df = pd.read_csv(filename,
+                     dtype={'fips': str}
+                     )
     return df
 
 
@@ -28,7 +37,9 @@ def get_states(df):
     return df['state'].unique()
 
 
-def process_data(df):
+def process_data(df, pop_df):
+    # if 'county' in df.columns:
+    df = get_per_capita(df, pop_df, 'cases', 'deaths')
     df = get_doubling_rate(df, 'cases', 'deaths')
     # Add text shortname
     if 'county' in df.columns:
@@ -55,7 +66,27 @@ def get_doubling_rate(df, *keys):
         # Add the change/doubling columns to the existing dataframe
         df[key+'_change'] = pd.concat(changes_count)
         df[key+'_doubling_rate'] = 1 / np.log2(1+pd.concat(changes))
+        # Fix issue that change on day of first cases is NaN
         df[key+'_change'].fillna(df[key], inplace=True)
+    return df
+
+
+def get_per_capita(df, pop_df, *keys):
+    # Get the per capita deaths/cases using the county population data
+    for key in keys:
+        per_capita = []
+        all_fips = df['fips'].unique()
+        all_fips = all_fips[all_fips != 'nan']
+        for fips in all_fips:
+            filtered_df = col_filter(df, fips=fips)[key]
+            population = col_filter(pop_df, fips=fips)['population'].values
+            if len(population) > 0:
+                population = population[0]
+                new_data = filtered_df / population * 100000
+                per_capita.append(new_data)
+            else:
+                print(col_filter(df, fips=fips))
+        df[key+'_per_capita'] = pd.concat(per_capita)
     return df
 
 

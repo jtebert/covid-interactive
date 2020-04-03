@@ -18,22 +18,29 @@ import dash_bootstrap_components as dbc
 
 import data_process as dp
 
-
 # Data sources (from NYT repository as submodule)
-data_dir = 'covid-19-data'
+pop_data_dir = 'population-data'
+covid_data_dir = 'covid-19-data'
 county_data_filename = 'us-counties.csv'
 state_data_filename = 'us-states.csv'
 
-county_df = dp.process_data(dp.import_data(os.path.join(data_dir, county_data_filename)))
-state_df = dp.process_data(dp.import_data(os.path.join(data_dir, state_data_filename)))
-# state_df = dp.get_doubling_rate(state_df, 'cases', 'deaths')
-# county_df = dp.get_doubling_rate(county_df, 'cases', 'deaths')
-county_df_nanless = county_df[county_df['fips'].notnull()]
+# County population data from USDA
+county_pop_data = dp.import_pop_data(os.path.join(pop_data_dir, county_data_filename))
+state_pop_data = dp.import_pop_data(os.path.join(pop_data_dir, state_data_filename))
+
+
+county_df = dp.import_data(os.path.join(covid_data_dir, county_data_filename))
+county_df = county_df[county_df['fips'].notnull()]
+# county_df = county_df[(county_df['fips'].notnull()) & (county_df['fips'] != 'nan')]
+county_df = dp.process_data(county_df, county_pop_data)
+state_df = dp.process_data(dp.import_data(os.path.join(covid_data_dir, state_data_filename)),
+                           state_pop_data)
+
 
 states = state_df.state.unique()
 states.sort()
 
-last_date = county_df_nanless['date'].max()
+last_date = county_df['date'].max()
 
 # Get the listing of counties for placing data on the map
 with urlopen('https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json') as response:
@@ -59,6 +66,7 @@ cases_or_deaths_options = {
 
 y_data_options = {
     '': 'Total Count',
+    'per_capita': 'Count per 100,000 People',
     'change': 'Daily Change (count)',
     'doubling_rate': 'Doubling Rate (days)'
 }
@@ -111,9 +119,8 @@ layout_buttons = [
         dcc.DatePickerSingle(
             id='date-picker',
             min_date_allowed=state_df['date'].min(),
-            max_date_allowed=state_df['date'].max(),
-            # initial_visible_month=dt(2017, 8, 5),
-            date=str(state_df['date'].max()),
+            max_date_allowed=last_date,
+            date=str(last_date),
             display_format='MMM D YYYY'
         ),
     ]),
@@ -241,10 +248,10 @@ def update_case_map(yaxis_type, cases_or_deaths, y_data, use_date, days_to_avera
     # Generate moving average data
     # TODO: Pre-compute for some range of days?
     if days_to_average > 1:
-        use_df = dp.get_moving_average(county_df_nanless, y_key, days_to_average)
+        use_df = dp.get_moving_average(county_df, y_key, days_to_average)
         y_key = y_key+'_avg'
     else:
-        use_df = county_df_nanless
+        use_df = county_df
 
     # Remove edge cases where number of cases/deaths decreased
     if y_data in ['doubling_rate']:
@@ -277,7 +284,7 @@ def update_case_map(yaxis_type, cases_or_deaths, y_data, use_date, days_to_avera
     )
     if 'colors' in display_switches:
         # Set the color range based on the highest value on the last day
-        color_max = county_df_nanless[county_df_nanless['date'] == last_date][y_key].max()
+        color_max = county_df[county_df['date'] == last_date][y_key].max()
         if yaxis_type == 'log':
             color_max = np.log10(color_max)
         choropleth_vals['range_color'] = (0, color_max)
@@ -304,7 +311,10 @@ def update_case_map(yaxis_type, cases_or_deaths, y_data, use_date, days_to_avera
 
     # Make logarithmic scale labels
     if yaxis_type == 'log':
-        tickmax = np.round(z_data[z_data != np.inf].max())
+        if 'colors' in display_switches:
+            tickmax = color_max
+        else:
+            tickmax = np.round(z_data[z_data != np.inf].max())
         tickrange = list(range(int(tickmax)))
         ticklabels = [10**t for t in tickrange]
         fig.update_layout(
