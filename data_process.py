@@ -84,8 +84,8 @@ def get_per_capita(df, pop_df, *keys):
                 population = population[0]
                 new_data = filtered_df / population * 100000
                 per_capita.append(new_data)
-            else:
-                print(col_filter(df, fips=fips))
+            # else:
+            #     print(col_filter(df, fips=fips))
         df[key+'_per_capita'] = pd.concat(per_capita)
     return df
 
