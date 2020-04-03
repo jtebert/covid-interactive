@@ -171,7 +171,7 @@ layout_buttons = [
             dbc.Label("Display Options:"),
             dbc.Checklist(
                 options=dict_to_options(display_options),
-                value=[],
+                value=['colors'],
                 id="display-switches",
                 switch=True,
             ),
@@ -284,7 +284,8 @@ def update_case_map(yaxis_type, cases_or_deaths, y_data, use_date, days_to_avera
     )
     if 'colors' in display_switches:
         # Set the color range based on the highest value on the last day
-        color_max = county_df[county_df['date'] == last_date][y_key].max()
+        color_vals = county_df[county_df['date'] == last_date][y_key].values
+        color_max = color_vals[np.isfinite(color_vals)].max()
         if yaxis_type == 'log':
             color_max = np.log10(color_max)
         choropleth_vals['range_color'] = (0, color_max)
